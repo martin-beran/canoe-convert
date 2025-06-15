@@ -10,9 +10,9 @@ def eskymo2canoe(classid, csv_data):
     try:
         while True:
             row = next(it)
-            if row == [
-                    'id', 'stč', 'rgc', 'jméno', 'nar.', 'vk', 'vt', 'oddíl',
-                    '1. jízda', '2. jízda', 'poznámka', 'nar1', 'nar2', 'vk1', 'vk2']:
+            if (
+                    row[0:8] == ['id', 'stč', 'rgc', 'jméno', 'nar.', 'vk', 'vt', 'oddíl'] or
+                    row[0:8] == ['id', 'Bib', 'Id',  'Name',  'Age',  '',   '',   'Team']):
                 break
     except StopIteration:
         raise RuntimeError('Expected header line missing in input CSV')
@@ -51,6 +51,7 @@ def eskymo2canoe(classid, csv_data):
             ET.SubElement(p, 'Ranking').text = row[1]
             ET.SubElement(p, 'RankingPoints').text = row[1]
             birth = row[4].split()
+            birth = list(map(lambda s: s.replace('#', ''), birth))
             if len(birth) > 0:
                 ET.SubElement(p, 'Birthdate').text = f'{birth[0]}-01-01T00:00:00+01:00'
                 if len(birth) > 1:
@@ -68,10 +69,17 @@ def eskymo2canoe(classid, csv_data):
     p.tail = '\n'
     return xml_data
 
-def canoe2eskymo(classid, xml_data, bibs_data):
+def canoe2eskymo(classid, xml_data, bibs_data, day):
     '''Convert from Canoe123 XML to Eskymo CSV for import'''
     ns={'':'http://siwidata.com/Canoe123/Data.xsd'}
+    days = set()
     for res in xml_data.iterfind('./Results', ns):
+        raceid = res.find('RaceId', ns).text.strip().split('_')[-1]
+        days.add(raceid)
+        if len(days) > 1 and day is None:
+            raise RuntimeError('Multiple races found, option --day is required')
+        if day is not None and raceid != day:
+            continue
         if res.find('Id', ns).text.split('.')[1] != classid:
             continue
         bib = res.find('Bib', ns).text.strip()
@@ -112,7 +120,7 @@ def eskymo2canoe_file(classid, csv_file, xml_file):
         raise
     xml_data.write(xml_file, encoding='utf-8', short_empty_elements=False)
 
-def canoe2eskymo_file(classid, xml_file, csv_file, bibs_file):
+def canoe2eskymo_file(classid, xml_file, csv_file, bibs_file, day):
     xml_data = ET.parse(xml_file)
     with open(bibs_file) as bf:
         reader = csv.reader(bf)
@@ -122,7 +130,7 @@ def canoe2eskymo_file(classid, xml_file, csv_file, bibs_file):
         for b in bibs_data
         if except_none(lambda: int(b[5])) is not None
     }
-    csv_data = canoe2eskymo(classid, xml_data, bibs_data)
+    csv_data = canoe2eskymo(classid, xml_data, bibs_data, day)
     with open(csv_file, 'w') as cf:
         writer = csv.writer(cf)
         writer.writerows(csv_data)
@@ -173,6 +181,8 @@ Conversions:
     parser.add_argument(
         '-C', '--classid', required=True,
         help='Class id as used in Canoe123')
+    parser.add_argument(
+        '-D', '--day', help='Race day of month, used only by -c c2e')
     parser.add_argument('source', help='Source file name: CSV for -c e2c, XML for -c c2e')
     parser.add_argument(
         'destination',
@@ -195,6 +205,6 @@ match args.conv:
     case 'e2c':
         eskymo2canoe_file(args.classid, args.source, args.destination)
     case 'c2e':
-        canoe2eskymo_file(args.classid, args.source, args.destination, args.bibs)
+        canoe2eskymo_file(args.classid, args.source, args.destination, args.bibs, args.day)
     case _:
         assert False

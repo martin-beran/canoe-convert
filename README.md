@@ -1,7 +1,11 @@
 # Konvertor datových souborů mezi Canoe123 a Eskymo
 
 Soubor `eskymo123-conv.py` je skript v Pythonu na převod dat mezi Eskymo (CSV)
-a Canoe123 (XML). Z Eskyma se do Canoe123 dají zkopírovat startovní listiny
+a Canoe123 (XML).
+
+## Před závodem (import startovních listin do Canoe123)
+
+Z Eskyma se do Canoe123 dají zkopírovat startovní listiny
 takto:
 
 1. V Eskymu připravte startovní listiny a každý list se startovní listinou
@@ -28,6 +32,8 @@ Pokud používáte Linux (včetně WSL ve Windows), dají se kroky 3 a 4 provés
 automaticky pro všechny kategorie skriptem `eskymo123-conv-sl.sh`, který vytvoří
 jeden soubor `sl.xml` obsahující sloučený seznam účastníků ze všech kategorií.
 
+## Po závodě (export výsledků do Eskyma)
+
 Po ukončení závodu je možné příkazem pro každou kategorii, např.
 
     python3 eskymo123-conv.py -c c2e -C K1M canoe123-zavod.xml K1M.csv
@@ -35,3 +41,18 @@ Po ukončení závodu je možné příkazem pro každou kategorii, např.
 vyexportovat výsledky ve formátu CSV. Každý řádek vytvořeného CSV souboru
 obsahuje startovní číslo, časy a penalizace z obou jízd. Časy a penalizace je
 pak potřeba vložit do příslušných sloupců listu s výsledky v Eskymu.
+
+Aby bylo zajištěné, že obsah CSV se dá vložit se správným pořadím řádků
+(startovních čísel) do výsledkového listu v Eskymu, je potřeba před spuštěním
+`python eskymo123-conv.py` nejprve exportovat výsledkový list (s prázdnými časy
+a penalizacemi). Tento soubor se pak zadává jako poslední parametr při volání
+skriptu a bude přepsán exportovanými výsledky. Alternativně je možné tento
+soubor přidat jako další parametr skriptu, pak zůstane zachován:
+
+    python3 eskymo123-conv.py -c c2e -C K1M canoe123-zavod.xml K1M-out.csv K1M-export.csv
+
+Pokud jsou v jednom XML souboru data více závodů z více dnů (typicky sobota
+i neděle při víkendových závodech), je potřeba přidat při volání skriptu
+parametr `--day X`, kde X je číslo dne v měsíci. Např. pro závody v sobotu
+31.5. a neděli 1.6. spustíme skript dvakrát. Jednou použijeme `--day 31`,
+podruhé `--day 1`.
