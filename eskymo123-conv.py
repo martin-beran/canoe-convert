@@ -1,5 +1,7 @@
 import argparse
 import csv
+import glob
+import io
 import os.path
 import sys
 import xml.etree.ElementTree as ET
@@ -109,16 +111,33 @@ def canoe2eskymo(classid, xml_data, bibs_data, day):
     ]
     return csv_data
 
-def eskymo2canoe_file(classid, csv_file, xml_file):
+def eskymo2canoe_read(classid, csv_file):
     with open(csv_file) as cf:
         reader = csv.reader(cf)
         csv_data = list(reader)
     try:
-        xml_data = eskymo2canoe(classid, csv_data)
+        return eskymo2canoe(classid, csv_data)
     except Exception as e:
         print(f'Exception when processing file {csv_file}')
         raise
+
+def eskymo2canoe_file(classid, csv_file, xml_file):
+    xml_data = eskymo2canoe_read(classid, csv_file)
     xml_data.write(xml_file, encoding='utf-8', short_empty_elements=False)
+
+def eskymo2canoe_all(source, destination):
+    sl = []
+    for f in glob.glob(os.path.join(source, '*_*_sl.csv')):
+        classid = f.split('_')[-2].upper()
+        print(classid, f)
+        xml_f = eskymo2canoe_read(classid, f)
+        s = io.StringIO()
+        xml_f.write(s, encoding='unicode', short_empty_elements=False)
+        s.seek(0, io.SEEK_SET)
+        sl.extend(list(s)[1:-1])
+    with open(destination, 'w') as f:
+        print(*sl, file=f, sep='', end='')
+
 
 def canoe2eskymo_file(classid, xml_file, csv_file, bibs_file, day):
     xml_data = ET.parse(xml_file)
@@ -169,6 +188,10 @@ Conversions:
            - quoting character '"' (double quote)
         Destination is a part of Canoe123 XML data, to be added into
         an event XML file.
+    e2c-all
+        Converts all exported start lists from Eskymo to Canoe123.
+        It expects start lists in the source directory, named XXX_CAT_sl.csv,
+        where XXX is anything, CAT is a category (class id, e.g., K1M).
     c2e
         Converts a Canoe123 XML file to a CSV file containing values
         for all result sheets in Eskymo. Parameters of the CSV file
@@ -176,22 +199,26 @@ Conversions:
 '''
     )
     parser.add_argument(
-        '-c', '--conv', choices=['e2c', 'c2e'], required=True,
+        '-c', '--conv', choices=['e2c', 'c2e', 'e2c-all'], required=True,
         help='Direction of conversion: e2c = Eskymo to Canoe123, c2e=Canoe123 to Eskymo')
     parser.add_argument(
-        '-C', '--classid', required=True,
-        help='Class id as used in Canoe123')
+        '-C', '--classid', help='Class id as used in Canoe123')
     parser.add_argument(
         '-D', '--day', help='Race day of month, used only by -c c2e')
-    parser.add_argument('source', help='Source file name: CSV for -c e2c, XML for -c c2e')
+    parser.add_argument('source',
+        help='Source file name: CSV for -c e2c, XML for -c c2e; source directory for -c e2c-all')
     parser.add_argument(
         'destination',
-        help='Destination file name: XML for -c e2c, CSV for -c c2e')
+        help='Destination file name: XML for -c e2c and -c e2c-all, CSV for -c c2e')
     parser.add_argument(
         'bibs',
         help='Optional CSV with bibs, used only by -c c2e',
         nargs='?')
     args = parser.parse_args()
+    if args.conv != 'e2c-all' and args.classid is None:
+        print('Required argument --classid')
+        parser.print_help()
+        exit(1)
     if args.conv == 'e2c' and args.bibs is not None:
         print('Unexpected argument bibs')
         parser.print_help()
@@ -204,6 +231,8 @@ args = cmdline()
 match args.conv:
     case 'e2c':
         eskymo2canoe_file(args.classid, args.source, args.destination)
+    case 'e2c-all':
+        eskymo2canoe_all(args.source, args.destination)
     case 'c2e':
         canoe2eskymo_file(args.classid, args.source, args.destination, args.bibs, args.day)
     case _:

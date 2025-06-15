@@ -28,9 +28,13 @@ takto:
 1. Nastartujte Canoe123. Pokud je vše proběhlo správně, bude vidět seznam
    účastníků a je možné vygenerovat startovní listiny.
 
-Pokud používáte Linux (včetně WSL ve Windows), dají se kroky 3 a 4 provést
-automaticky pro všechny kategorie skriptem `eskymo123-conv-sl.sh`, který vytvoří
-jeden soubor `sl.xml` obsahující sloučený seznam účastníků ze všech kategorií.
+Kroky 3 a 4 se dají provést automaticky pro všechny kategorie příkazem
+
+    python3 eskymo123-conv.py -c e2c-all SRC sl.xml
+
+`SRC` je adresář obsahující CVS soubory pro všechny kategorie, se jmény ve
+tvaru `XXX_k1m_sl.xml`. Soubor `sl.xml` bude obsahovat sloučený seznam
+účastníků ze všech kategorií.
 
 ## Po závodě (export výsledků do Eskyma)
 
